@@ -1,59 +1,37 @@
-from flask import Flask, render_template, request, jsonify
-
+from flask import Flask, request
+from flask_restful import Resource, Api
 
 app = Flask(__name__)
+api = Api(app)
 
-stores = [{"name": "KFC", "items": [{"name": "Drum Sticks", "price": 6.99}]}]
-
-
-@app.route("/")
-def home():
-    return render_template("index.html")
+items = []
 
 
-# GET REQUEST
-@app.route("/store", methods=["GET"])
-def send_store_info():
-    for store in stores:
-        return jsonify({"store_name": store})
+class Item(Resource):
+    def get(self, name):
+        item = next(filter(lambda x: x["name"] == name, items), None)
+        return {"item": item}, 200 if item else 404
+
+    def post(self, name):
+
+        if next(filter(lambda x: x["name"] == name, items), None):
+            return {"message": f"{name} already exist"}, 400
+
+        request_data = request.get_json()
+        new_item = {"name": name, "price": request_data["price"]}
+        items.append(new_item)
+        return new_item
 
 
-@app.route("/store/<string:name>", methods=["GET"])
-def send_certain_store(name):
-    for store in stores:
-        if store["name"] == name:
-            return jsonify({"item_info": store["items"]})
-    return ValueError("Store Not Found!")
+api.add_resource(Item, "/item/<string:name>")
 
 
-@app.route("/store/<string:name>/item")
-def send_item_info(name):
-    for store in stores:
-        if store["name"] == name:
-            return jsonify({"item_info": store["items"][0]})
-
-    return ValueError("Store Not Found!")
+class Itemlist(Resource):
+    def get(self):
+        return {"items": items}
 
 
-# POST REQUEST
-@app.route("/store", methods=["POST"])
-def create_store():
-    request_data = request.get_json()
-    new_data = {"name": request_data["name"], "items": []}
-    stores.append(new_data)
-    return jsonify(new_data)
-
-
-@app.route("/store/<string:name>/item", methods=["POST"])
-def create_new_store_item(name):
-    request_data = request.get_json()
-    for store in stores:
-        if store["name"] == name:
-            new_item = {"name": request_data["name"], "price": request_data["price"]}
-            stores["items"].append(new_item)
-            return jsonify(new_item)
-
-    return ValueError("Store Not Found")
+api.add_resource(Itemlist, "/items")
 
 
 if __name__ == "__main__":
