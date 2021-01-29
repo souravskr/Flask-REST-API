@@ -1,5 +1,5 @@
 from flask import Flask, request
-from flask_restful import Resource, Api
+from flask_restful import Resource, Api, reqparse
 from flask_jwt import JWT, jwt_required
 from security import authenticate, indentity
 
@@ -20,13 +20,42 @@ class Item(Resource):
         return item, 404 if None else 200
 
     def post(self, name):
+
         if next(filter(lambda x: x["name"] == name, items), None):
             return {"message": f"{name} already there"}
 
-        request_data = request.get_json()
+        parser = reqparse.RequestParser()
+        parser.add_argument(
+            "price", type=float, required=True, help="This field can't be empty"
+        )
+
+        request_data = parser.parse_args()
+
         new_item = {"name": name, "price": request_data["price"]}
         items.append(new_item)
         return new_item
+
+    def delete(self, name):
+        global items
+        items = list(filter(lambda x: x["name"] != name, items))
+        return {"message": "Item Deleted"}
+
+    def put(self, name):
+
+        parser = reqparse.RequestParser()
+        parser.add_argument(
+            "price", type=float, required=True, help="This field can't be empty"
+        )
+
+        request_data = parser.parse_args()
+
+        item = next(filter(lambda x: x["name"] == name, items), None)
+        if item:
+            item.update(request_data)
+        else:
+            item = {"name": name, "price": request_data["price"]}
+            items.append(item)
+        return item
 
 
 api.add_resource(Item, "/item/<string:name>")
